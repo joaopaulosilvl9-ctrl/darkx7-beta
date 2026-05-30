@@ -1,4 +1,478 @@
--- DARK.X7 BETA - COMPLETO COM SISTEMA DE KEY
+-- -- DARK.X7 BETA - MOBILE FIX
+local Library = {
+    Theme = {
+        ["Background"] = Color3.fromRGB(25, 25, 25),
+        ["Border"] = Color3.fromRGB(45, 45, 45),
+        ["Accent"] = Color3.fromRGB(242, 98, 34),
+        ["Text"] = Color3.fromRGB(255, 255, 255),
+        ["Inactive Text"] = Color3.fromRGB(160, 160, 160),
+        ["Element"] = Color3.fromRGB(35, 35, 35),
+        ["Inline"] = Color3.fromRGB(50, 50, 50)
+    },
+    Threads = {},
+    Connections = {},
+    ThemeItems = {},
+    ThemeMap = {},
+    Font = Enum.Font.GothamBold
+}
+
+local Config = {
+    Title = "DARK.X7 BETA",
+    Description = "Enter the 24h access key below to proceed",
+    File = "darkx7_key.txt",
+    Linkvertise = "https://linkvertise.com",
+    Rinku = "https://rinku.com",
+    Discord = "https://discord.gg",
+    Shop = "https://shop.com"
+}
+
+local script_key = ""
+local IsMobile = true
+
+local TweenService = game:GetService("TweenService")
+local TextService = game:GetService("TextService")
+local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+
+local MathFloor = math.floor
+local MathClamp = math.clamp
+local StringFormat = string.format
+local TableInsert = table.insert
+local Vector2New = Vector2.new
+local UDim2New = UDim2.new
+local UDimNew = UDim.new
+local FromRGB = Color3.fromRGB
+
+local function SafeGetUI()
+    return game:GetService("CoreGui") or game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local Instances = {
+    Create = function(self, Class, Properties)
+        local Obj = Instance.new(Class)
+        for Prop, Val in pairs(Properties) do
+            if Prop ~= "Parent" then Obj[Prop] = Val end
+        end
+        Obj.Parent = Properties.Parent
+        
+        local Wrapper = { Instance = Obj }
+        function Wrapper:AddToTheme(Props)
+            Library:AddToTheme(Obj, Props)
+            return Wrapper
+        end
+        function Wrapper:Tween(Info, Props)
+            TweenService:Create(Obj, Info, Props):Play()
+            return Wrapper
+        end
+        function Wrapper:Clean()
+            Obj:Destroy()
+        end
+        function Wrapper:Connect(Event, Callback)
+            Obj[Event]:Connect(Callback)
+            return Wrapper
+        end
+        return Wrapper
+    end
+}
+
+Library.NotifHolder = Instances:Create("ScreenGui", {
+    Parent = SafeGetUI(),
+    Name = "\0",
+    ResetOnSpawn = false,
+    IgnoreGuiInset = true,
+    DisplayOrder = 9999
+})
+
+Library.NotifHolder.Instance.Size = UDim2New(1, 0, 1, 0)
+Library.NotifLayoutOrder = 0
+
+Instances:Create("UIListLayout", {
+	Parent = Library.NotifHolder.Instance,
+	Name = "\0",
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	HorizontalAlignment = Enum.HorizontalAlignment.Right,
+	Padding = UDimNew(0, 20)
+})
+
+Instances:Create("UIPadding", {
+	Parent = Library.NotifHolder.Instance,
+	Name = "\0",
+	PaddingLeft = UDimNew(0, 12),
+	PaddingRight = UDimNew(0, 12),
+	PaddingTop = UDimNew(0, 12),
+	PaddingBottom = UDimNew(0, 12)
+})
+
+Library.Thread = function(self, Function)
+	local NewThread = coroutine.create(Function)
+	coroutine.wrap(function() coroutine.resume(NewThread) end)()
+	TableInsert(self.Threads, NewThread)
+	return NewThread
+end
+
+Library.Connect = function(self, Event, Callback)
+	local NewConnection = {
+		Event = Event,
+		Callback = Callback,
+		Name = StringFormat("conn_%s", HttpService:GenerateGUID(false)),
+		Connection = nil
+	}
+	Library.Thread(self, function()
+		NewConnection.Connection = Event:Connect(Callback)
+	end)
+	TableInsert(self.Connections, NewConnection)
+	return NewConnection
+end
+
+Library.AddToTheme = function(self, Item, Properties)
+	Item = Item.Instance or Item
+	local ThemeData = { Item = Item, Properties = Properties }
+	for Property, Value in pairs(ThemeData.Properties) do
+		if type(Value) == "string" then
+			Item[Property] = self.Theme[Value] or Value
+		elseif type(Value) == "function" then
+			Item[Property] = Value()
+		end
+	end
+	TableInsert(self.ThemeItems, ThemeData)
+	self.ThemeMap[Item] = ThemeData
+end
+
+Library.Notification = function(self, Data)
+	wait()
+	Library.NotifLayoutOrder = (Library.NotifLayoutOrder or 0) + 1
+	local TitleText = Data.Title or Data.Name or "DARK.X7 BETA"
+	local DescText = Data.Description or ""
+	local Duration = Data.Duration or 5
+
+	local PaddingH = 6
+	local PaddingV = 5
+	local Gap = 5
+	local BarGap = 4
+	local BarH = 3
+	local MaxWidth = 330
+
+	local TitleSize = TextService:GetTextSize(TitleText, 14, Library.Font, Vector2.new(MaxWidth, 10000))
+	local DescSize = TextService:GetTextSize(DescText, 12, Library.Font, Vector2.new(MaxWidth - PaddingH * 2, 10000))
+
+	local TitleH = math.max(math.ceil(TitleSize.Y), 15)
+	local DescH = math.max(math.ceil(DescSize.Y), 14)
+	if DescH < 28 then DescH = 28 end
+
+	local ContentWidth = math.min(math.max(math.max(TitleSize.X, DescSize.X) + PaddingH * 2, 100), MaxWidth)
+	local SizeY = PaddingV + TitleH + Gap + DescH + BarGap + BarH + PaddingV
+
+	local Items = {} do
+		Items["Notification"] = Instances:Create("Frame", {
+			Parent = Library.NotifHolder.Instance,
+			Name = "\0",
+			BackgroundColor3 = Library.Theme["Background"],
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0,
+			LayoutOrder = Library.NotifLayoutOrder,
+			Size = UDim2New(0, ContentWidth, 0, SizeY)
+		}):AddToTheme({BackgroundColor3 = 'Background'})
+
+		Instances:Create("UICorner", { Parent = Items["Notification"].Instance, CornerRadius = UDimNew(0, 5) })
+
+		Items["Title"] = Instances:Create("TextLabel", {
+			Parent = Items["Notification"].Instance,
+			Size = UDim2New(1, 0, 0, TitleH),
+			BackgroundTransparency = 1,
+			Text = TitleText,
+			TextColor3 = Library.Theme["Text"],
+			TextSize = 14,
+			FontFace = Library.Font,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTransparency = 1
+		}):AddToTheme({TextColor3 = 'Text'})
+
+		Items["Description"] = Instances:Create("TextLabel", {
+			Parent = Items["Notification"].Instance,
+			Size = UDim2New(1, -PaddingH * 2, 0, DescH),
+			Position = UDim2New(0, PaddingH, 0, TitleH + Gap),
+			BackgroundTransparency = 1,
+			Text = DescText,
+			TextColor3 = Library.Theme["Text"],
+			TextSize = 12,
+			FontFace = Library.Font,
+			TextTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextWrapped = true
+		}):AddToTheme({TextColor3 = 'Text'})
+
+		Items["Duration"] = Instances:Create("Frame", {
+			Parent = Items["Notification"].Instance,
+			Size = UDim2New(1, 0, 0, BarH),
+			Position = UDim2New(0, 0, 0, TitleH + Gap + DescH + BarGap),
+			BackgroundColor3 = Library.Theme["Inline"],
+			BackgroundTransparency = 1,
+			BorderSizePixel = 0
+		}):AddToTheme({BackgroundColor3 = 'Inline'})
+
+		Items["Accent"] = Instances:Create("Frame", {
+			Parent = Items["Duration"].Instance,
+			Size = UDim2New(1, 0, 1, 0),
+			BackgroundColor3 = Data.Color or Library.Theme["Accent"],
+			BorderSizePixel = 0
+		})
+	end
+
+	local FadeInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local BarInfo = TweenInfo.new(Duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+
+	Library.Thread(Library, function()
+		Items["Notification"]:Tween(FadeInfo, {BackgroundTransparency = 0})
+		Items["Title"]:Tween(FadeInfo, {TextTransparency = 0})
+		Items["Description"]:Tween(FadeInfo, {TextTransparency = 0.4})
+		Items["Duration"]:Tween(FadeInfo, {BackgroundTransparency = 0})
+		Items["Accent"]:Tween(BarInfo, {Size = UDim2New(0, 0, 1, 0)})
+
+		wait(Duration)
+		Items["Notification"]:Clean()
+	end)
+end
+
+local BlurEffect = Instances:Create("BlurEffect", { Name = "\0", Size = 0, Parent = Lighting })
+
+local Items = {} do
+	Items["ScreenGui"] = Instances:Create("ScreenGui", {
+		Parent = SafeGetUI(),
+		Name = "\0",
+		ZIndexBehavior = Enum.ZIndexBehavior.Global,
+		DisplayOrder = 999,
+		ResetOnSpawn = false,
+		IgnoreGuiInset = true
+	})
+
+	Items["Overlay"] = Instances:Create("Frame", {
+		Parent = Items["ScreenGui"].Instance,
+		Size = UDim2New(1, 0, 1, 0),
+		BackgroundColor3 = FromRGB(0, 0, 0),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ZIndex = 1
+	})
+
+	Items["MainFrame"] = Instances:Create("Frame", {
+		Parent = Items["ScreenGui"].Instance,
+		Size = UDim2New(0, 0, 0, 0),
+		Position = UDim2New(0.5, 0, 0.5, 0),
+		AnchorPoint = Vector2New(0.5, 0.5),
+		BackgroundColor3 = Library.Theme["Background"],
+		BackgroundTransparency = 0.15,
+		BorderSizePixel = 0,
+		ZIndex = 2
+	}):AddToTheme({BackgroundColor3 = 'Background'})
+
+	Instances:Create("UICorner", { Parent = Items["MainFrame"].Instance, CornerRadius = UDimNew(0, 8) })
+
+	Items["MainStroke"] = Instances:Create("UIStroke", {
+		Parent = Items["MainFrame"].Instance,
+		Color = Library.Theme["Border"],
+		Thickness = 1,
+		Transparency = 1
+	}):AddToTheme({Color = 'Border'})
+
+	Items["TitleLabel"] = Instances:Create("TextLabel", {
+		Parent = Items["MainFrame"].Instance,
+		Size = UDim2New(1, 0, 0, 40),
+		Position = UDim2New(0, 0, 0, 20),
+		BackgroundTransparency = 1,
+		Text = "DARK.X7 BETA",
+		TextColor3 = Library.Theme["Accent"],
+		TextSize = 24,
+		FontFace = Library.Font,
+		TextTransparency = 1,
+		ZIndex = 2
+	}):AddToTheme({TextColor3 = 'Accent'})
+
+	Items["SubtitleLabel"] = Instances:Create("TextLabel", {
+		Parent = Items["MainFrame"].Instance,
+		Size = UDim2New(1, 0, 0, 20),
+		Position = UDim2New(0, 0, 0, 65),
+		BackgroundTransparency = 1,
+		Text = Config.Description,
+		TextColor3 = Library.Theme["Inactive Text"],
+		TextSize = 12,
+		FontFace = Library.Font,
+		TextTransparency = 1,
+		ZIndex = 2
+	}):AddToTheme({TextColor3 = 'Inactive Text'})
+
+	Items["Line"] = Instances:Create("Frame", {
+		Parent = Items["MainFrame"].Instance,
+		Size = UDim2New(0.84, 0, 0, 1),
+		Position = UDim2New(0.08, 0, 0, 95),
+		BackgroundColor3 = Library.Theme["Border"],
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ZIndex = 2
+	}):AddToTheme({BackgroundColor3 = 'Border'})
+
+	Items["TextBoxContainer"] = Instances:Create("Frame", {
+		Parent = Items["MainFrame"].Instance,
+		Size = UDim2New(0, 340, 0, 45),
+		Position = UDim2New(0.5, 0, 0, 115),
+		AnchorPoint = Vector2New(0.5, 0),
+		BackgroundColor3 = Library.Theme["Element"],
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ZIndex = 2
+	}):AddToTheme({BackgroundColor3 = 'Element'})
+
+	Instances:Create("UICorner", { Parent = Items["TextBoxContainer"].Instance, CornerRadius = UDimNew(0, 5) })
+
+	Items["TextBoxStroke"] = Instances:Create("UIStroke", {
+		Parent = Items["TextBoxContainer"].Instance,
+		Color = Library.Theme["Border"],
+		Thickness = 1,
+		Transparency = 1
+	}):AddToTheme({Color = 'Border'})
+
+	Items["KeyTextBox"] = Instances:Create("TextBox", {
+		Parent = Items["TextBoxContainer"].Instance,
+		Size = UDim2New(1, -24, 1, 0),
+		Position = UDim2New(0, 12, 0, 0),
+		BackgroundTransparency = 1,
+		ZIndex = 2,
+		Text = "",
+		TextColor3 = Library.Theme["Text"],
+		TextSize = 14,
+		FontFace = Library.Font,
+		PlaceholderText = "Paste your key here...",
+		PlaceholderColor3 = Library.Theme["Inactive Text"],
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTransparency = 1,
+		ClearTextOnFocus = false
+	}):AddToTheme({TextColor3 = 'Text', PlaceholderColor3 = 'Inactive Text'})
+
+	Items["CloseButton"] = Instances:Create("TextButton", {
+		Parent = Items["MainFrame"].Instance,
+		Size = UDim2New(0, 30, 0, 30),
+		Position = UDim2New(1, -40, 0, 10),
+		BackgroundColor3 = Library.Theme["Element"],
+		BackgroundTransparency = 1,
+		Text = "X",
+		TextColor3 = Library.Theme["Text"],
+		TextSize = 16,
+		FontFace = Library.Font,
+		TextTransparency = 1,
+		ZIndex = 2
+	}):AddToTheme({BackgroundColor3 = 'Element', TextColor3 = 'Text'})
+
+	Instances:Create("UICorner", { Parent = Items["CloseButton"].Instance, CornerRadius = UDimNew(0, 5) })
+end
+
+local Buttons = {}
+local function CreateButton(Text, Position)
+	local Button = Instances:Create("TextButton", {
+		Parent = Items["MainFrame"].Instance,
+		Size = UDim2New(0, 320, 0, 42),
+		Position = Position,
+		AnchorPoint = Vector2New(0.5, 0),
+		BackgroundColor3 = Library.Theme["Element"],
+		BackgroundTransparency = 1,
+		Text = Text,
+		TextColor3 = Library.Theme["Text"],
+		TextSize = 13,
+		FontFace = Library.Font,
+		TextTransparency = 1,
+		ZIndex = 2
+	}):AddToTheme({BackgroundColor3 = 'Element', TextColor3 = 'Text'})
+
+	Instances:Create("UICorner", { Parent = Button.Instance, CornerRadius = UDimNew(0, 5) })
+
+	local bStroke = Instances:Create("UIStroke", {
+		Parent = Button.Instance,
+		Color = Library.Theme["Border"],
+		Thickness = 1,
+		Transparency = 1
+	}):AddToTheme({Color = 'Border'})
+
+	TableInsert(Buttons, {Button = Button, Stroke = bStroke})
+	return Button
+end
+
+Items["Button1"] = CreateButton("Get Key (Linkvertise)", UDim2New(0.5, 0, 0, 180))
+Items["Button2"] = CreateButton("Get Key (Rinku)", UDim2New(0.5, 0, 0, 230))
+Items["Button3"] = CreateButton("Join Discord", UDim2New(0.5, 0, 0, 280))
+Items["Button4"] = CreateButton("Buy Standard Key", UDim2New(0.5, 0, 0, 330))
+
+local TweenData = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+local function CloseUI()
+	BlurEffect:Tween(TweenData, {Size = 0})
+	Items["Overlay"]:Tween(TweenData, {BackgroundTransparency = 1})
+	Items["MainFrame"]:Tween(TweenData, {Size = UDim2New(0, 0, 0, 0)})
+	wait(0.35)
+	Items["ScreenGui"]:Clean()
+end
+
+local function ValidateKey(Key)
+	local CleanedKey = Key:gsub("%s", "")
+	if CleanedKey == "123" then
+		Library:Notification({ Title = "DARK.X7 BETA", Description = "Key Approved! Access granted.", Color = Color3.fromRGB(0, 255, 100), Duration = 5 })
+		wait(1.5)
+		CloseUI()
+		print("DARK.X7 Carregado com sucesso!")
+		return true
+	end
+	Library:Notification({ Title = "DARK.X7 BETA", Description = "Incorrect Key!", Color = Color3.fromRGB(255, 50, 50), Duration = 5 })
+	return false
+end
+
+Items["Button1"]:Connect("MouseButton1Click", function()
+	if setclipboard then setclipboard(Config.Linkvertise) end
+	Library:Notification({Title = "DARK.X7 BETA", Description = "Linkvertise copied", Duration = 3})
+end)
+
+Items["Button2"]:Connect("MouseButton1Click", function()
+	if setclipboard then setclipboard(Config.Rinku) end
+	Library:Notification({Title = "DARK.X7 BETA", Description = "Rinku copied", Duration = 3})
+end)
+
+Items["Button3"]:Connect("MouseButton1Click", function()
+	if setclipboard then setclipboard(Config.Discord) end
+	Library:Notification({Title = "DARK.X7 BETA", Description = "Discord copied", Duration = 3})
+end)
+
+Items["Button4"]:Connect("MouseButton1Click", function()
+	if setclipboard then setclipboard(Config.Shop) end
+	Library:Notification({Title = "DARK.X7 BETA", Description = "Shop copied", Duration = 3})
+end)
+
+Items["KeyTextBox"]:Connect("FocusLost", function(EnterPressed)
+	if Items["KeyTextBox"].Instance.Text == "" then return end
+	if not ValidateKey(Items["KeyTextBox"].Instance.Text) then
+		Items["KeyTextBox"].Instance.Text = ""
+	end
+end)
+
+Items["CloseButton"]:Connect("MouseButton1Click", function() CloseUI() end)
+
+local TweenInfo2 = TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+
+BlurEffect:Tween(TweenData, {Size = 12})
+Items["Overlay"]:Tween(TweenData, {BackgroundTransparency = 0.4})
+Items["MainFrame"]:Tween(TweenData, {Size = UDim2New(0, 360, 0, 400)})
+
+wait(0.3)
+
+Items["TitleLabel"]:Tween(TweenInfo2, {TextTransparency = 0})
+Items["SubtitleLabel"]:Tween(TweenInfo2, {TextTransparency = 0})
+Items["Line"]:Tween(TweenInfo2, {BackgroundTransparency = 0})
+Items["TextBoxContainer"]:Tween(TweenInfo2, {BackgroundTransparency = 0})
+Items["TextBoxStroke"]:Tween(TweenInfo2, {Transparency = 0})
+Items["KeyTextBox"]:Tween(TweenInfo2, {TextTransparency = 0})
+Items["CloseButton"]:Tween(TweenInfo2, {BackgroundTransparency = 0, TextTransparency = 0})
+Items["MainStroke"]:Tween(TweenInfo2, {Transparency = 0})
+
+for _, bData in pairs(Buttons) do
+	bData.Button:Tween(TweenInfo2, {BackgroundTransparency = 0, TextTransparency = 0})
+	bData.Stroke:Tween(TweenInfo2, {Transparency = 0})
+end BETA - COMPLETO COM SISTEMA DE KEY
 local Library = {
     Theme = {
         ["Background"] = Color3.fromRGB(25, 25, 25),
